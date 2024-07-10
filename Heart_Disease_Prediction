@@ -1,0 +1,246 @@
+# Importing Libraries
+
+import numpy as np # linear algebra
+import pandas as pd # data processing, CSV file I/O (e.g. pd.read_csv)
+from sklearn.preprocessing import MinMaxScaler
+from sklearn.model_selection import train_test_split
+import matplotlib.pyplot as plt
+import seaborn as sns
+from sklearn.metrics import roc_curve
+from sklearn.metrics import roc_auc_score
+from sklearn.metrics import accuracy_score, confusion_matrix
+# Loading Data
+#reading dataset into dataframe
+df = pd.read_csv("heart_disease_health_indicators_BRFSS2015.csv")
+
+#seeing how our dataset looks like using first five rows
+df.head()
+
+# Seeing dimension of our data
+#(rows, columns)
+print('(rows, columns) ->', df.shape)
+print('\n')
+#to check datatypes of columns
+df.info()
+df.describe()
+#checking if null values are present in rows
+df.isnull().sum()
+#Replacing null values in numerical columns with their mean
+for column in df:
+    if df[column].dtype == 'float64':
+        df[column].fillna(value = df[column].mean(), inplace = True)
+df.isnull().sum()
+df.columns
+catcol = ['', 'HighBP', 'HighChol', 'CholCheck',
+       'Smoker', 'Stroke', 'Diabetes', 'PhysActivity', 'Fruits', 'Veggies',
+       'HvyAlcoholConsump', 'AnyHealthcare', 'NoDocbcCost', 'GenHlth',
+       'DiffWalk', 'Sex', 'Education',
+       'Income']
+# Countplot on each feature
+plt.figure(figsize=(20,60))
+for i,column in enumerate(df.columns):
+    plt.subplot(len(df.columns), 5, i+1)
+    plt.suptitle("Plot Value Count", fontsize=20, x=0.5, y=1)
+    sns.countplot(data=df, x=column)
+    plt.title(f"{column}")
+    plt.tight_layout()
+distcol = ['Age', 'MentHlth', 'PhysHlth', 'BMI']
+fig, axes = plt.subplots(2, 2, figsize=(18, 10))
+sns.histplot(ax=axes[0,0], data=df, x=distcol[0])
+sns.histplot(ax=axes[0,1], data=df, x=distcol[1])
+sns.histplot(ax=axes[1,0], data=df, x=distcol[2])
+sns.histplot(ax=axes[1,1], data=df, x=distcol[3])
+plt.figure(figsize=(15,50))
+for i,column in enumerate(catcol[1:]):
+    plt.subplot(len(catcol), 2, i+1)
+    plt.suptitle("Plot Value Count VS HeartAttack", fontsize=20, x=0.5, y=1)
+    sns.countplot(data=df, x=column, hue='HeartDiseaseorAttack')
+    plt.title(f"{column}")
+    plt.tight_layout()
+bincol = ['HighBP', 'HighChol', 'CholCheck', 'Smoker', 'Stroke', 'Diabetes', 'PhysActivity', 'Fruits', 'Veggies',
+         'HvyAlcoholConsump', 'AnyHealthcare', 'NoDocbcCost', 'DiffWalk', 'Sex']
+plt.figure(figsize=(15,50))
+for i,column in enumerate(bincol[1:]):
+    plt.subplot(len(catcol), 2, i+1)
+    plt.suptitle("Plot Value Count VS Education", fontsize=20, x=0.5, y=1)
+    sns.countplot(data=df, x=column, hue='Education')
+    plt.title(f"{column}")
+    plt.tight_layout()
+
+plt.figure(figsize=(15,50))
+for i,column in enumerate(bincol[1:]):
+    plt.subplot(len(catcol), 2, i+1)
+    plt.suptitle("Plot Value Count VS Income", fontsize=20, x=0.5, y=1)
+    sns.countplot(data=df, x=column, hue='Income')
+    plt.title(f"{column}")
+    plt.tight_layout()
+import matplotlib.pyplot as plt
+import seaborn as sns
+correlation = df.corr()
+plt.figure(figsize=(16,12))
+plt.title('Correlation Heatmap of Heart Disease')
+ax = sns.heatmap(correlation, square=True, annot=True, fmt='.2f', linecolor='white')
+ax.set_xticklabels(ax.get_xticklabels(), rotation=90)
+ax.set_yticklabels(ax.get_yticklabels(), rotation=30)           
+plt.show()
+#data statistics
+cor_matrix = df.corr().abs()
+cor_matrix
+#remove duplicate correlation diagonal
+upper_tri = cor_matrix.where(np.triu(np.ones(cor_matrix.shape),k=1).astype(np.bool))
+upper_tri
+#drop both highly correlated columns
+to_drop = [column for column in upper_tri.columns if any(upper_tri[column] > 0.7) or any(upper_tri[column] < 0.01)]
+to_drop
+#specify features and target columns
+target = df['HeartDiseaseorAttack']
+features = df.drop(to_drop, axis=1)
+features = features.drop('HeartDiseaseorAttack',axis=1)
+features.info()
+#Data Scaling
+scaler = MinMaxScaler()
+scaled_features = scaler.fit_transform(features)
+#data splitting
+X_train, X_test, y_train, y_test = train_test_split(scaled_features,target,stratify=target, test_size=0.2)
+from sklearn.neighbors import KNeighborsClassifier
+from sklearn.metrics import confusion_matrix, classification_report
+
+
+#creating our knn classifier model with n = 3
+knn_value_3 = KNeighborsClassifier(n_neighbors = 3)
+knn_value_3.fit(X_train, np.ravel(y_train,order='C'))
+
+#Estimating the accuracy of knn classifier with 3 knn
+print("Accuracy score ->", knn_value_3.score(X_test, y_test))
+
+#creating confusion matrix
+y_pred = knn_value_3.predict(X_test)
+cm=confusion_matrix(y_test, y_pred)
+
+print('Confusion matrix\n', cm)
+print('True Positives(TP) = ', cm[0,0])
+print('True Negatives(TN) = ', cm[1,1])
+print('False Positives(FP) = ', cm[0,1])
+print('False Negatives(FN) = ', cm[1,0])
+
+# compute and print the classification report
+report = classification_report(y_test, y_pred)
+print(report)
+tpr, fpr, th = roc_curve(y_test, knn_value_3.predict(X_test))
+plt.plot(tpr,fpr)
+plt.title(roc_auc_score(y_test, knn_value_3.predict(X_test)))
+plt.show()
+#creating our knn classifier model with n = 5
+knn_value_5 = KNeighborsClassifier(n_neighbors = 5)
+knn_value_5.fit(X_train, np.ravel(y_train,order='C'))
+
+
+#Estimating the accuracy of knn classifier with 5 knn
+print("Accuracy score ->", knn_value_5.score(X_test, y_test))
+
+#creating confusion matrix
+y_pred = knn_value_5.predict(X_test)
+cm=confusion_matrix(y_test, y_pred)
+
+print('Confusion matrix\n', cm)
+print('True Positives(TP) = ', cm[0,0])
+print('True Negatives(TN) = ', cm[1,1])
+print('False Positives(FP) = ', cm[0,1])
+print('False Negatives(FN) = ', cm[1,0])
+tpr, fpr, th = roc_curve(y_test, knn_value_5.predict(X_test))
+plt.plot(tpr,fpr)
+plt.title(roc_auc_score(y_test, knn_value_5.predict(X_test)))
+plt.show()
+#creating our knn classifier model with n = 10
+knn_value_10 = KNeighborsClassifier(n_neighbors = 10)
+knn_value_10.fit(X_train, np.ravel(y_train,order='C'))
+
+#Estimating the accuracy of knn classifier with 10 knn
+print("Accuracy score ->", knn_value_10.score(X_test, y_test))
+
+#creating confusion matrix
+y_pred = knn_value_10.predict(X_test)
+
+cm=confusion_matrix(y_test, y_pred)
+
+print('Confusion matrix:-', cm)
+print('True Positives(TP) = ', cm[0,0])
+print('True Negatives(TN) = ', cm[1,1])
+print('False Positives(FP) = ', cm[0,1])
+print('False Negatives(FN) = ', cm[1,0])
+tpr, fpr, th = roc_curve(y_test, knn_value_10.predict(X_test))
+plt.plot(tpr,fpr)
+plt.title(roc_auc_score(y_test, knn_value_10.predict(X_test)))
+plt.show()
+#Basic Naive Bayes
+from sklearn.naive_bayes import GaussianNB
+Gnb = GaussianNB()
+Gnb.fit(X_train, y_train)
+y_pred = Gnb.predict(X_test)
+print("Naive Bayes Classifier Accuracy: ",accuracy_score(y_test, y_pred))
+print('Confusion matrix\n', cm)
+print('True Positives(TP) = ', cm[0,0])
+print('True Negatives(TN) = ', cm[1,1])
+print('False Positives(FP) = ', cm[0,1])
+print('False Negatives(FN) = ', cm[1,0])
+
+# compute and print the classification report
+report = classification_report(y_test, y_pred)
+print(report)
+tpr, fpr, th = roc_curve(y_test, Gnb.predict(X_test))
+plt.plot(tpr,fpr)
+plt.title(roc_auc_score(y_test, Gnb.predict(X_test)))
+plt.show()
+from sklearn.ensemble import RandomForestClassifier
+rf = RandomForestClassifier()
+rf.fit(X_train, y_train)
+y_pred = rf.predict(X_test)
+print("Random Forest Classifier Accuracy: ",accuracy_score(y_test, y_pred))
+
+print('Confusion matrix:-', cm)
+print('True Positives(TP) = ', cm[0,0])
+print('True Negatives(TN) = ', cm[1,1])
+print('False Positives(FP) = ', cm[0,1])
+print('False Negatives(FN) = ', cm[1,0])
+
+# compute and print the classification report
+report = classification_report(y_test, y_pred)
+print(report)
+tpr, fpr, th = roc_curve(y_test, rf.predict(X_test))
+plt.plot(tpr,fpr)
+plt.title(roc_auc_score(y_test, rf.predict(X_test)))
+plt.show()
+from sklearn.tree import DecisionTreeClassifier
+#creating our Decision Tree Classifier - CART classifier is what is packaged into sklearn
+clf_dt = DecisionTreeClassifier().fit(X_train, np.ravel(y_train,order='C'))
+
+#Estimating the accuracy
+print("Accuracy score ->", clf_dt.score(X_test, y_test))
+
+#creating confusion matrix
+y_pred = clf_dt.predict(X_test)
+cm=confusion_matrix(y_test, y_pred)
+
+print('Confusion matrix\n', cm)
+print('True Positives(TP) = ', cm[0,0])
+print('True Negatives(TN) = ', cm[1,1])
+print('False Positives(FP) = ', cm[0,1])
+print('False Negatives(FN) = ', cm[1,0])
+
+# compute and print the classification report
+report = classification_report(y_test, y_pred)
+print(report)
+# Load libraries
+from sklearn.ensemble import AdaBoostClassifier
+
+# Create adaboost classifer object
+abc = AdaBoostClassifier(n_estimators=50,
+                         learning_rate=1)
+# Train Adaboost Classifer
+model = abc.fit(X_train, y_train)
+
+#Predict the response for test dataset
+y_pred = model.predict(X_test)
+from sklearn import metrics
+# Model Accuracy, how often is the classifier correct?
+print("Accuracy:",metrics.accuracy_score(y_test, y_pred))
